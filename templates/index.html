@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheatreBot Health Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+            margin-right: 6px;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .footer {
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .footer span {
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>TheatreBot Health Dashboard</h1>
+            <p><span class="pulse"></span> Live System Monitoring</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Telegram Bot Status</div>
+                <div class="card-value" id="botStatus">Loading...</div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Monitor Status</div>
+                <div class="card-value" id="monitorStatus">Loading...</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Theatres Tracked</div>
+                <div class="card-value" id="theatreCount">0</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Active Subscribers</div>
+                <div class="card-value" id="subscriberCount">0</div>
+            </div>
+
+            <div class="card" style="grid-column: 1 / -1;">
+                <div class="card-title">Last Check Time</div>
+                <div class="card-value" id="lastCheckTime" style="font-size: 1.5rem;">Never</div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">System Uptime since: <span id="startTime">Loading...</span></p>
+            </div>
+        </div>
+
+        <div class="footer">
+            Auto-refreshing every <span>2 seconds</span>
+        </div>
+    </div>
+
+    <script>
+        async function fetchHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                // Update Bot Status
+                const botEl = document.getElementById('botStatus');
+                botEl.innerHTML = data.bot_status === 'Polling Active' 
+                    ? `<span class="status-badge">${data.bot_status}</span>`
+                    : `<span class="status-badge error">${data.bot_status}</span>`;
+
+                // Update Monitor Status
+                const monEl = document.getElementById('monitorStatus');
+                monEl.innerHTML = data.monitor_status === 'Running Normally' 
+                    ? `<span class="status-badge">${data.monitor_status}</span>`
+                    : `<span class="status-badge error">${data.monitor_status}</span>`;
+
+                // Update Counts and Times
+                document.getElementById('theatreCount').textContent = data.theatre_count;
+                document.getElementById('subscriberCount').textContent = data.subscriber_count;
+                document.getElementById('lastCheckTime').textContent = data.last_check_time;
+                document.getElementById('startTime').textContent = data.start_time;
+
+            } catch (error) {
+                console.error("Failed to fetch health data:", error);
+            }
+        }
+
+        // Fetch immediately, then every 2 seconds
+        fetchHealth();
+        setInterval(fetchHealth, 2000);
+    </script>
+</body>
+</html>

@@ -5,10 +5,24 @@ import telebot
 import threading
 import time
 import os
+from flask import Flask, render_template, jsonify
+from datetime import datetime
 
 TOKEN = '8824453563:AAG3SlczlIDlFT97X0p9JY4BU9nvnGieYbc'
 bot = telebot.TeleBot(TOKEN)
 SUBSCRIBERS_FILE = 'subscribers.json'
+
+app = Flask(__name__)
+
+# Global State for Health Monitoring
+health_state = {
+    "last_check_time": "Never",
+    "theatre_count": 0,
+    "subscriber_count": 0,
+    "bot_status": "Starting...",
+    "monitor_status": "Starting...",
+    "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+}
 
 # Load subscribers
 def load_subscribers():
@@ -26,6 +40,7 @@ def save_subscribers(subs):
 
 # Maintain a set of subscribers in memory
 subscribers = set(load_subscribers())
+health_state["subscriber_count"] = len(subscribers)
 
 @bot.message_handler(commands=['start', 'subscribe'])
 def subscribe_user(message):
@@ -33,6 +48,7 @@ def subscribe_user(message):
     if chat_id not in subscribers:
         subscribers.add(chat_id)
         save_subscribers(list(subscribers))
+        health_state["subscriber_count"] = len(subscribers)
         bot.reply_to(message, "You have successfully subscribed to Theatre updates!")
         print(f"New subscriber: {chat_id}")
     else:
@@ -76,20 +92,20 @@ def get_theatres():
     try:
         response = requests.get(url, headers=headers, cookies=cookies)
         if response.status_code != 200:
-            print(f"Failed to fetch page, status code: {response.status_code}")
+            health_state["monitor_status"] = f"Failed to fetch page, status: {response.status_code}"
             return []
 
         soup = BeautifulSoup(response.text, 'html.parser')
         script_tag = soup.find('script', id='__NEXT_DATA__')
         if not script_tag:
-            print("Could not find __NEXT_DATA__ script tag.")
+            health_state["monitor_status"] = "Could not find __NEXT_DATA__ tag"
             return []
             
         data = json.loads(script_tag.string)
         movie_sessions = data['props']['pageProps']['initialState']['movies']['movieSessions']
         
         if not movie_sessions:
-            print("No movie sessions found.")
+            health_state["monitor_status"] = "No movie sessions found"
             return []
             
         session_key = list(movie_sessions.keys())[0]
@@ -102,19 +118,23 @@ def get_theatres():
             if theatre_name:
                 theatres.append(theatre_name)
             
+        health_state["monitor_status"] = "Running Normally"
+        health_state["last_check_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        health_state["theatre_count"] = len(theatres)
+        
         return theatres
     except Exception as e:
-        print(f"Error parsing data: {e}")
+        health_state["monitor_status"] = f"Error parsing data: {e}"
         return []
 
 def monitor_theatres():
     print("Starting theatre monitor loop...")
+    health_state["monitor_status"] = "Initializing..."
     known_theatres = set(get_theatres())
     print(f"Initial theatres found: {len(known_theatres)}")
     
     while True:
         time.sleep(5) # Check every 5 seconds
-        print("Checking for updates...")
         current_theatres = set(get_theatres())
         
         if not current_theatres:
@@ -137,16 +157,34 @@ def monitor_theatres():
                     
             known_theatres = current_theatres
 
+def run_telegram_bot():
+    # Start bot polling robustly
+    while True:
+        try:
+            print("Bot is polling. Send /subscribe to it on Telegram!")
+            health_state["bot_status"] = "Polling Active"
+            bot.infinity_polling(timeout=10, long_polling_timeout=5)
+        except Exception as e:
+            print(f"Bot polling crashed: {e}. Restarting in 5 seconds...")
+            health_state["bot_status"] = f"Crashed: {e}, Restarting..."
+            time.sleep(5)
+
+@app.route('/')
+def dashboard():
+    return render_template('index.html')
+
+@app.route('/api/health')
+def api_health():
+    return jsonify(health_state)
+
 if __name__ == "__main__":
     # Start the monitor thread
     monitor_thread = threading.Thread(target=monitor_theatres, daemon=True)
     monitor_thread.start()
     
-    # Start bot polling robustly
-    while True:
-        try:
-            print("Bot is polling. Send /subscribe to it on Telegram!")
-            bot.infinity_polling(timeout=10, long_polling_timeout=5)
-        except Exception as e:
-            print(f"Bot polling crashed: {e}. Restarting in 5 seconds...")
-            time.sleep(5)
+    # Start bot polling thread
+    bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
+    bot_thread.start()
+    
+    # Start Flask app
+    app.run(host='0.0.0.0', port=5000)
