@@ -113,7 +113,7 @@ def monitor_theatres():
     print(f"Initial theatres found: {len(known_theatres)}")
     
     while True:
-        time.sleep(300) # Check every 5 minutes
+        time.sleep(5) # Check every 5 seconds
         print("Checking for updates...")
         current_theatres = set(get_theatres())
         
