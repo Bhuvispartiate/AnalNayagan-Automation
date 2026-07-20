@@ -142,6 +142,11 @@ if __name__ == "__main__":
     monitor_thread = threading.Thread(target=monitor_theatres, daemon=True)
     monitor_thread.start()
     
-    # Start bot polling
-    print("Bot is polling. Send /subscribe to it on Telegram!")
-    bot.infinity_polling()
+    # Start bot polling robustly
+    while True:
+        try:
+            print("Bot is polling. Send /subscribe to it on Telegram!")
+            bot.infinity_polling(timeout=10, long_polling_timeout=5)
+        except Exception as e:
+            print(f"Bot polling crashed: {e}. Restarting in 5 seconds...")
+            time.sleep(5)
